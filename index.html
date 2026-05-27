@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spide PDU Code Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --border: #e2e0d8;
+      --text: #1a1917;
+      --text-muted: #7a7870;
+      --accent: #2a2a8c;
+      --accent-light: #eeeeff;
+      --accent-border: #8888dd;
+      --tip-bg: #fffbe6;
+      --tip-border: #e6c800;
+      --tip-text: #5a4a00;
+      --radius: 10px;
+      --font: 'DM Sans', sans-serif;
+      --mono: 'DM Mono', monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1rem 4rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header .brand {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    header p {
+      margin-top: 8px;
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 660px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
+
+    .section { margin-bottom: 1.5rem; }
+    .section:last-of-type { margin-bottom: 0; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-label .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .opt {
+      padding: 8px 16px;
+      font-size: 14px;
+      font-family: var(--font);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.12s, background 0.12s, color 0.12s;
+      font-weight: 400;
+    }
+
+    .opt:hover:not(:disabled) { border-color: var(--accent-border); background: var(--accent-light); }
+
+    .opt:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+      border-style: dashed;
+    }
+
+    .opt.selected {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .opt .code-tag {
+      font-family: var(--mono);
+      font-size: 12px;
+      opacity: 0.7;
+      margin-left: 4px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.75rem 0;
+    }
+
+    .result {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+    }
+
+    .result-empty {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .result-filled { width: 100%; }
+
+    .result-meta {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .result-code {
+      font-family: var(--mono);
+      font-size: 36px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+    }
+
+    .result-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .part {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .part strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .tip {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: var(--tip-bg);
+      border: 1px solid var(--tip-border);
+      border-radius: var(--radius);
+      font-size: 13px;
+      color: var(--tip-text);
+      line-height: 1.5;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">Spide · PDU configurator</div>
+    <h1>Code Generator</h1>
+    <p>Select your options to build the product code.</p>
+  </header>
+
+  <div class="card">
+
+    <div class="section">
+      <div class="section-label"><span class="num">1</span> Orientation</div>
+      <div class="options" id="orientation">
+        <button class="opt" data-val="V" onclick="pick(this,'orientation')">Vertical <span class="code-tag">V</span></button>
+        <button class="opt" data-val="H" onclick="pick(this,'orientation')">Horizontal <span class="code-tag">H</span></button>
+        <button class="opt" data-val="D" onclick="pick(this,'orientation')">Double deep Horizontal <span class="code-tag">D</span></button>
+        <button class="opt" data-val="W" onclick="pick(this,'orientation')">Double deep Vertical <span class="code-tag">W</span></button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label"><span class="num">2</span> Phases</div>
+      <div class="options" id="phases">
+        <button class="opt" data-val="1" onclick="pick(this,'phases')">1 phase <span class="code-tag">1</span></button>
+        <button class="opt" data-val="3" onclick="pick(this,'phases')">3 phase <span class="code-tag">3</span></button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label"><span class="num">3</span> Amperage</div>
+      <div class="options" id="amperage">
+        <button class="opt" data-val="1" onclick="pick(this,'amperage')">16A <span class="code-tag">1</span></button>
+        <button class="opt" data-val="3" onclick="pick(this,'amperage')">32A <span class="code-tag">3</span></button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label"><span class="num">4</span> Measurement type</div>
+      <div class="options" id="measurement">
+        <button class="opt" data-val="N" onclick="pick(this,'measurement')">None / basic <span class="code-tag">N</span></button>
+        <button class="opt" data-val="I" onclick="pick(this,'measurement')">Input measure total <span class="code-tag">I</span></button>
+        <button class="opt" data-val="M" onclick="pick(this,'measurement')">Total + per fuse <span class="code-tag">M</span></button>
+      </div>
+      <div id="measurement-notice" style="display:none; margin-top:10px; font-size:13px; padding:8px 12px; background:#fff3cd; border:1px solid #e6c800; border-radius:8px; color:#5a4a00; line-height:1.5;"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label"><span class="num">5</span> Outlet type</div>
+      <div class="options" id="outlet">
+        <button class="opt" data-val="N" onclick="pick(this,'outlet')">Passive <span class="code-tag">N</span></button>
+        <button class="opt" data-val="M" onclick="pick(this,'outlet')">Metered <span class="code-tag">M</span></button>
+        <button class="opt" data-val="S" onclick="pick(this,'outlet')">Switched <span class="code-tag">S</span></button>
+        <button class="opt" data-val="B" onclick="pick(this,'outlet')">Switched + Metered <span class="code-tag">B</span></button>
+        <button class="opt" data-val="P" onclick="pick(this,'outlet')">Pass through inline meter <span class="code-tag">P</span></button>
+      </div>
+    </div>
+
+    <hr />
+
+    <div class="result" id="result">
+      <div class="result-empty">Select all options above to generate your code.</div>
+    </div>
+
+  </div>
+
+  <footer>Spide PDU Code Generator</footer>
+
+  <script>
+    const state = { orientation: null, measurement: null, outlet: null, phases: null, amperage: null };
+
+    const labels = {
+      orientation: { V: 'Vertical', H: 'Horizontal', D: 'Double deep H', W: 'Double deep V' },
+      measurement:  { N: 'No measurement', I: 'Input total', M: 'Total + per fuse' },
+      outlet:       { N: 'Passive', M: 'Metered', S: 'Switched', B: 'Switched + Metered', P: 'Pass through' },
+      phases:       { '1': '1 phase', '3': '3 phase' },
+      amperage:     { '1': '16A', '3': '32A' }
+    };
+
+    function is32A1Phase() {
+      return state.phases === '1' && state.amperage === '3';
+    }
+
+    function updateMeasurementConstraints() {
+      const btnI = document.querySelector('#measurement .opt[data-val="I"]');
+      const notice = document.getElementById('measurement-notice');
+
+      if (is32A1Phase()) {
+        btnI.disabled = true;
+        if (state.measurement === 'I') {
+          state.measurement = null;
+          document.querySelectorAll('#measurement .opt').forEach(b => b.classList.remove('selected'));
+        }
+        notice.style.display = 'block';
+        notice.innerHTML = '⚠️ <strong>Input measure total (I) is not available</strong> for 1 phase 32A. Use <strong>Total + per fuse (M)</strong> instead — it includes branch measurement and costs almost nothing extra.';
+      } else {
+        btnI.disabled = false;
+        notice.style.display = 'none';
+      }
+    }
+
+    function pick(btn, group) {
+      if (btn.disabled) return;
+      document.querySelectorAll('#' + group + ' .opt').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      state[group] = btn.dataset.val;
+      updateMeasurementConstraints();
+      render();
+    }
+
+    function render() {
+      const { orientation, measurement, outlet, phases, amperage } = state;
+      const el = document.getElementById('result');
+
+      if (!orientation || !measurement || !outlet || !phases || !amperage) {
+        el.innerHTML = '<div class="result-empty">Select all options above to generate your code.</div>';
+        return;
+      }
+
+      const code = orientation + measurement + outlet + phases + amperage;
+
+      const parts = [
+        ['Orientation', orientation, labels.orientation[orientation]],
+        ['Measurement', measurement, labels.measurement[measurement]],
+        ['Outlet', outlet, labels.outlet[outlet]],
+        ['Phase', phases, labels.phases[phases]],
+        ['Amp', amperage, labels.amperage[amperage]],
+      ];
+
+      const breakdown = parts.map(([label, key, desc]) =>
+        `<div class="part">${label}: <strong>${key}</strong> — ${desc}</div>`
+      ).join('');
+
+      el.innerHTML = `
+        <div class="result-filled">
+          <div class="result-meta">Generated code</div>
+          <div class="result-code">${code}</div>
+          <div class="result-breakdown">${breakdown}</div>
+        </div>
+      `;
+    }
+  </script>
+
+</body>
+</html>
