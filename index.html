@@ -185,6 +185,7 @@
         <button class="opt" data-val="D" onclick="pick(this,'orientation')">Double deep Horizontal <span class="code-tag">D</span></button>
         <button class="opt" data-val="W" onclick="pick(this,'orientation')">Double deep Vertical <span class="code-tag">W</span></button>
       </div>
+      <div class="notice" id="orientation-notice"></div>
     </div>
 
     <div class="section">
@@ -200,6 +201,7 @@
       <div class="options" id="amperage">
         <button class="opt" data-val="1" onclick="pick(this,'amperage')">16A <span class="code-tag">1</span></button>
         <button class="opt" data-val="3" onclick="pick(this,'amperage')">32A <span class="code-tag">3</span></button>
+        <button class="opt" data-val="6" onclick="pick(this,'amperage')">63A <span class="code-tag">6</span></button>
       </div>
     </div>
 
@@ -243,7 +245,7 @@
       measurement:  { N: 'No measurement', I: 'Input total', M: 'Total + per fuse' },
       outlet:       { N: 'Passive', M: 'Metered', S: 'Switched', B: 'Switched + Metered', P: 'Pass through' },
       phases:       { '1': '1 phase', '3': '3 phase' },
-      amperage:     { '1': '16A', '3': '32A' }
+      amperage:     { '1': '16A', '3': '32A', '6': '63A' }
     };
 
     function setBtn(group, val, disabled) {
@@ -274,34 +276,80 @@
     }
 
     function updateConstraints() {
-      const { phases, amperage, outlet } = state;
-      const is1p32 = phases === '1' && amperage === '3';
-      const is1p16 = phases === '1' && amperage === '1';
+      const { phases, amperage, outlet, measurement, orientation } = state;
+      const is1p32  = phases === '1' && amperage === '3';
+      const is1p16  = phases === '1' && amperage === '1';
+      const is63    = amperage === '6';
+      const is63_1p = is63 && phases === '1';
+      const is63_3p = is63 && phases === '3';
       const isPassThrough = outlet === 'P';
+      const isBasic = measurement === 'N';
 
-      // Reset measurement buttons first
+      // Reset all buttons
       ['N','I','M'].forEach(v => setBtn('measurement', v, false));
+      ['N','M','S','B','P'].forEach(v => setBtn('outlet', v, false));
+      ['V','H','D','W'].forEach(v => setBtn('orientation', v, false));
 
-      if (isPassThrough) {
-        // Pass through forces Input measure total (I); disable N and M
+      // --- 63A orientation restrictions ---
+      if (is63) {
+        // Disable H and D for all 63A
+        setBtn('orientation', 'H', true);
+        setBtn('orientation', 'D', true);
+        showNotice('orientation-notice', '⚠️ <strong>63A</strong> is only available in <strong>Vertical (V)</strong> or <strong>Double deep Vertical (W)</strong>.');
+
+        if (is63_1p) {
+          // Force Vertical
+          if (orientation !== 'V') {
+            state.orientation = null;
+            document.querySelectorAll('#orientation .opt').forEach(b => b.classList.remove('selected'));
+          }
+          setBtn('orientation', 'W', true);
+          if (!state.orientation) forceSelect('orientation', 'V', null);
+          showNotice('orientation-notice', '⚠️ <strong>63A 1 phase</strong> requires <strong>Vertical (V)</strong> orientation.');
+          // Force M, disable I
+          setBtn('measurement', 'I', true);
+          if (measurement === 'I') { state.measurement = null; document.querySelectorAll('#measurement .opt').forEach(b => b.classList.remove('selected')); }
+          showNotice('measurement-notice', '⚠️ <strong>Input measure total (I) is not available</strong> for 63A 1 phase. Use <strong>Total + per fuse (M)</strong>.');
+        } else if (is63_3p) {
+          // Force Double deep Vertical
+          if (orientation !== 'W') {
+            state.orientation = null;
+            document.querySelectorAll('#orientation .opt').forEach(b => b.classList.remove('selected'));
+          }
+          setBtn('orientation', 'V', true);
+          if (!state.orientation) forceSelect('orientation', 'W', null);
+          showNotice('orientation-notice', '⚠️ <strong>63A 3 phase</strong> requires <strong>Double deep Vertical (W)</strong> orientation.');
+          // Disable I
+          setBtn('measurement', 'I', true);
+          if (measurement === 'I') { state.measurement = null; document.querySelectorAll('#measurement .opt').forEach(b => b.classList.remove('selected')); }
+          showNotice('measurement-notice', '⚠️ <strong>Input measure total (I) is not available</strong> for 63A 3 phase. Use <strong>Total + per fuse (M)</strong>.');
+        }
+      } else {
+        showNotice('orientation-notice', null);
+
+        if (is1p32) {
+          setBtn('measurement', 'I', true);
+          showNotice('measurement-notice', '⚠️ <strong>Input measure total (I) is not available</strong> for 1 phase 32A. Use <strong>Total + per fuse (M)</strong> instead — it includes branch measurement and costs almost nothing extra.');
+        } else if (is1p16) {
+          setBtn('measurement', 'M', true);
+          showNotice('measurement-notice', '⚠️ <strong>Total + per fuse (M) is not available</strong> for 1 phase 16A. Use <strong>Input measure total (I)</strong> if you need measurement.');
+        } else {
+          showNotice('measurement-notice', null);
+        }
+      }
+
+      // Basic → Passive (always applies, runs after above)
+      if (isBasic) {
+        ['M','S','B','P'].forEach(v => setBtn('outlet', v, true));
+        forceSelect('outlet', 'N',
+          '⚠️ <strong>None / basic measurement</strong> only works with <strong>Passive outlets (N)</strong>. Other outlet types require a measurement type.');
+      } else if (isPassThrough && !isBasic) {
         setBtn('measurement', 'N', true);
-        setBtn('measurement', 'M', true);
+        if (!is63) setBtn('measurement', 'M', true);
         forceSelect('measurement', 'I',
           '⚠️ <strong>Pass through inline meter</strong> requires <strong>Input measure total (I)</strong>. None and Total + per fuse are not available for this outlet type.');
-      } else if (is1p32) {
-        // 1 phase 32A: disable I
-        setBtn('measurement', 'I', true);
-        showNotice('measurement-notice',
-          '⚠️ <strong>Input measure total (I) is not available</strong> for 1 phase 32A. Use <strong>Total + per fuse (M)</strong> instead — it includes branch measurement and costs almost nothing extra.');
-        showNotice('outlet-notice', null);
-      } else if (is1p16) {
-        // 1 phase 16A: disable M
-        setBtn('measurement', 'M', true);
-        showNotice('measurement-notice',
-          '⚠️ <strong>Total + per fuse (M) is not available</strong> for 1 phase 16A. Use <strong>Input measure total (I)</strong> if you need measurement.');
         showNotice('outlet-notice', null);
       } else {
-        showNotice('measurement-notice', null);
         showNotice('outlet-notice', null);
       }
     }
