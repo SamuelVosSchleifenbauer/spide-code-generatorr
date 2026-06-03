@@ -292,9 +292,11 @@
 
       // --- 63A orientation restrictions ---
       if (is63) {
-        // Disable H and D for all 63A
+        // Disable H, D and Pass through for all 63A
         setBtn('orientation', 'H', true);
         setBtn('orientation', 'D', true);
+        setBtn('outlet', 'P', true);
+        if (outlet === 'P') { state.outlet = null; document.querySelectorAll('#outlet .opt').forEach(b => b.classList.remove('selected')); }
         showNotice('orientation-notice', '⚠️ <strong>63A</strong> is only available in <strong>Vertical (V)</strong> or <strong>Double deep Vertical (W)</strong>.');
 
         if (is63_1p) {
